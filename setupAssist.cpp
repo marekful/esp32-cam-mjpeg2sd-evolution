@@ -40,47 +40,47 @@ cPUeybQ=
 static fs::FS fp = STORAGE;
 
 static void wgetFile(const char* filePath, bool restart = false) {
-  if (!fp.exists(filePath)) {
-    if (WiFi.status() != WL_CONNECTED) return;  
-    char downloadURL[150];
-    sprintf(downloadURL, "%s%s", GITHUB_URL, filePath);
-    for (int i = 0; i < 2; i++) {
-      // try secure then insecure
-      File f = fp.open(filePath, FILE_WRITE);
-      if (f) {
-        HTTPClient https;
-        WiFiClientSecure wclient;
-        if (!i) wclient.setCACert(git_rootCACertificate);
-        else wclient.setInsecure(); // not SSL      
-        https.begin(wclient, downloadURL);
-        LOG_INF("Downloading %s from %s", filePath, downloadURL);    
-        int httpCode = https.GET();
-        int fileSize = 0;
-        if (httpCode == HTTP_CODE_OK) {
-          fileSize = https.writeToStream(&f);
-          if (fileSize <= 0) {
-            httpCode = 0;
-            LOG_ERR("Download failed: writeToStream");
-          } else LOG_INF("Downloaded %s, size %d bytes", filePath, fileSize);       
-        } else LOG_ERR("Download failed, error: %s", https.errorToString(httpCode).c_str());    
-        https.end();
-        f.close();
-        if (httpCode == HTTP_CODE_OK) break;
-        else fp.remove(filePath);
-      } else LOG_ERR("Open failed: %s", filePath);
-    } 
-    if (restart) doRestart();
+  if (WiFi.status() != WL_CONNECTED || fp.exists(filePath)) return;
+  char downloadURL[150];
+  sprintf(downloadURL, "%s%s", GITHUB_URL, filePath);
+  for (int i = 0; i < 2; i++) {
+    // try secure then insecure
+    File f = fp.open(filePath, FILE_WRITE);
+    if (f) {
+      HTTPClient https;
+      WiFiClientSecure wclient;
+      if (!i) wclient.setCACert(git_rootCACertificate);
+      else wclient.setInsecure(); // not SSL      
+      https.begin(wclient, downloadURL);
+      LOG_INF("Downloading %s from %s", filePath, downloadURL);    
+      int httpCode = https.GET();
+      int fileSize = 0;
+      if (httpCode == HTTP_CODE_OK) {
+        fileSize = https.writeToStream(&f);
+        if (fileSize <= 0) {
+          httpCode = 0;
+          LOG_ERR("Download failed: writeToStream");
+        } else LOG_INF("Downloaded %s, size %d bytes", filePath, fileSize);       
+      } else LOG_ERR("Download failed, error: %s", https.errorToString(httpCode).c_str());    
+      https.end();
+      f.close();
+      if (httpCode == HTTP_CODE_OK) break;
+      else fp.remove(filePath);
+    } else LOG_ERR("Open failed: %s", filePath);
   } 
+  if (restart) doRestart();
 }
 
 bool checkDataFiles() {
   // Download missing data files
   if (!fp.exists(DATA_DIR)) fp.mkdir(DATA_DIR);
-  wgetFile(CONFIG_FILE_PATH, true);
   wgetFile(INDEX_PAGE_PATH);      
   wgetFile(DATA_DIR "/OTA.htm");
   wgetFile(DATA_DIR "/LOG.htm");
+  wgetFile(DATA_DIR "/style.css");
+  wgetFile(DATA_DIR "/main.js");
   wgetFile(DATA_DIR "/jquery.min.js");
+  wgetFile(CONFIG_FILE_PATH, true);
   return true;
 }
 

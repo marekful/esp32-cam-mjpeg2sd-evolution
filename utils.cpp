@@ -7,6 +7,9 @@
 // - battery voltage
 //
 // s60sc 2021, some functions based on code contributed by gemi254
+/*
+ * @marekful 2022
+ */
 
 #include "myConfig.h"
 
@@ -74,7 +77,7 @@ bool startWifi() {
   LOG_INF("Setting wifi hostname: %s", hostName);
   WiFi.setHostname(hostName);
   if (strlen(ST_SSID) > 0) { 
-    LOG_INF("Got stored router credentials. Connecting to: %s", ST_SSID);
+    LOG_INF("Got stored router credentials for SSID %s", ST_SSID);
     if (strlen(ST_ip) > 1) {
       LOG_INF("Set config static ip: %s, %s, %s, %s", ST_ip, ST_gw, ST_sn, ST_ns1);
       IPAddress _ip, _gw, _sn, _ns1, _ns2;
@@ -86,22 +89,24 @@ bool startWifi() {
       _ns2.fromString(ST_ns2);
       // set static ip
       WiFi.config(_ip, _gw, _sn, _ns1); // need DNS for SNTP
-    } else {LOG_INF("Getting ip from dhcp ...");}
+    } else {LOG_INF("Getting ip from dhcp");}
     
     WiFi.mode(WIFI_STA);
     WiFi.begin(ST_SSID, ST_Pass);
+    Serial.print("WiFi connecting ");
     uint32_t startAttemptTime = millis();
     while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_TIMEOUT_MS)  {
       //Stop waiting on failure.. Will reconnect later by keep alive
       if (WiFi.status() == WL_CONNECT_FAILED){
-        LOG_ERR("Connect FAILED to: %s. ", ST_SSID);
+        LOG_ERR("\nConnect FAILED to: %s. ", ST_SSID);
         startPing();      
         return false;
       }
       Serial.print(".");
-      delay(500);
+      delay(800);
       Serial.flush();
     }
+    Serial.println();
     if (WiFi.status() == WL_CONNECTED) {
       startPing();
       LOG_INF("Use 'http://%s' to connect", WiFi.localIP().toString().c_str()); 
@@ -276,7 +281,7 @@ void showProgress() {
   // show progess as dots if not verbose
   static uint8_t dotCnt = 0;
 ////  if (!dbgVerbose) {
-    Serial.print("."); // progress marker
+    Serial.printf("%s", loopRecord ? ":" : "."); // progress marker
     if (++dotCnt >= 50) {
       dotCnt = 0;
       Serial.println("");

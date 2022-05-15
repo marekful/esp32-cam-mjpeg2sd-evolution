@@ -4,26 +4,57 @@
 *
 * s60sc 2020, 2021, 2022
 */
+/*
+ * @marekful 2022
+ */
 // built using arduino-esp32 stable release v2.0.2
 
 #include "myConfig.h"
 #include "camera_pins.h"
 
+void shutdownHandler() {
+  bool delayShutdown = false;
+  LOG_INF("Executing shutdown handler.");
+  if (forceRecord) {
+    forceRecord = false;
+    LOG_DBG("%sRecording closed before restart.", loopRecord ? "Loop " : "");
+    if (loopRecord) loopRecord = false;
+    closeRecordingRequested = true;
+    delayShutdown = true;
+  }
+  if (forcePlayback) {
+    stopPlaying();
+    delayShutdown = true;
+    LOG_DBG("Playback closed before restart.");
+  }
+  if (forceStream) {
+    forceStream = false;
+    delayShutdown = true;
+    LOG_DBG("Stream closed before restart.");
+  }
+  if (delayShutdown) delay(2000);
+  esp_camera_deinit();
+  LOG_DBG("Camera deinit complete.");
+  SD_MMC.end();
+  LOG_DBG("SD card unmount complete.");
+  //sdmmc_host_deinit();
+}
+
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
-  
+
   LOG_INF("=============== Starting ===============");
   if (!psramFound()) {
     LOG_WRN("Need PSRAM to be enabled");
     delay(10000);
     ESP.restart();
-  } 
-  
+  }
+
   if ((fs::SPIFFSFS*)&STORAGE == &SPIFFS) startSpiffs();
   else if (!prepSD_MMC()) {
-    LOG_WRN("Insert SD card, will restart after 10 secs");    
+    LOG_WRN("Insert SD card, will restart after 10 secs");
     delay(10000);
     ESP.restart();
   }
@@ -96,6 +127,8 @@ void setup() {
   s->set_vflip(s, 1);
   s->set_hmirror(s, 1);
 #endif
+
+  esp_register_shutdown_handler(shutdownHandler);
   
   // Load saved user configuration
   loadConfig(); 
@@ -107,9 +140,10 @@ void setup() {
 #endif
   startWifi();
   
+  delay(1000);
   if (!prepRecording()) {
-    LOG_ERR("Unable to continue, AVI capture fail, restart after 10 secs");    
-    delay(10000);
+    LOG_ERR("Unable to continue, AVI capture fail, restart after 5 secs");    
+    delay(5000);
     ESP.restart();
   }
 

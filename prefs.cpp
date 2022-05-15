@@ -14,6 +14,9 @@
 
   s60sc 2022
 */
+/*
+ * @marekful 2022
+ */
 
 # include "myConfig.h"
 
@@ -49,10 +52,13 @@ static esp_err_t updateAppStatus(const char* variable, const char* value) {
     LOG_INF("%s motion detection", useMotion ? "Enabling" : "Disabling");
   }
   else if(!strcmp(variable, "timeLapseOn")) timeLapseOn = intVal;
+  else if(!strcmp(variable, "loopRecOn")) loopRecOn = intVal;
+  else if(!strcmp(variable, "loopRecAuto")) loopRecAuto = intVal;
+  else if(!strcmp(variable, "loopLen")) loopLen = intVal;
   else if(!strcmp(variable, "lswitch")) nightSwitch = intVal;
   else if(!strcmp(variable, "micGain")) micGain = intVal;
   else if(!strcmp(variable, "autoUpload")) autoUpload = intVal;
-  else if(!strcmp(variable, "upload")) ftpFileOrFolder(value);  
+  else if(!strcmp(variable, "upload")) ftpFileOrFolder(value);
   else if(!strcmp(variable, "uploadMove")) {
     ftpFileOrFolder(value);  
     deleteFolderOrFile(value);
@@ -62,7 +68,26 @@ static esp_err_t updateAppStatus(const char* variable, const char* value) {
     deleteFolderOrFile(value);
   }
   else if(!strcmp(variable, "record")) doRecording = (intVal) ? true : false;   
-  else if(!strcmp(variable, "forceRecord")) forceRecord = (intVal) ? true : false;                                       
+  else if(!strcmp(variable, "forceRecord")) {
+    bool oldVal = forceRecord ? true : false;
+    forceRecord = (intVal) ? true : false;
+    // LOG_INF(" --> forceRecord [%d %d %d]", oldVal, forceRecord, loopRecord);
+    if (oldVal != forceRecord && !forceRecord) {
+      if (loopRecord) {
+        LOG_INF("Closed Loop Recording by Button");
+        loopRecord = false;
+      } else LOG_INF("Closed recording by Button");
+      closeRecordingRequested = true;
+    }
+  }
+  else if(!strcmp(variable, "forceStream")) {
+    bool oldVal = forceStream ? true : false;
+    forceStream = (intVal) ? true : false;
+    //LOG_INF(" --> forceStream [%d %d]", oldVal, forceStream);
+    if (oldVal != forceStream && !forceStream) {
+      LOG_INF("Closed stream by Button");
+    }
+  }
   else if(!strcmp(variable, "dbgMotion")) {
     // only enable show motion if motion detect enabled
     if (intVal && useMotion) dbgMotion = true;
@@ -114,6 +139,8 @@ static void buildAppJsonString(bool quick) {
   if (currentVoltage < 0) p += sprintf(p, "\"battv\":\"n/a\",");
   else p += sprintf(p, "\"battv\":\"%0.1fV\",", currentVoltage);  
   p += sprintf(p, "\"forceRecord\":%u,", forceRecord ? 1 : 0);  
+  p += sprintf(p, "\"forcePlayback\":%u,", forcePlayback ? 1 : 0);  
+  p += sprintf(p, "\"forceStream\":%u,", forceStream ? 1 : 0);  
   //Other settings 
   struct timeval tv;
   gettimeofday(&tv, NULL);
@@ -196,6 +223,7 @@ static void loadKeyVal(const std::string keyValPair) {
     if (colon != std::string::npos) {
       configs[keyValPair.substr(0, colon)] =
         keyValPair.substr(colon + 1, keyValPair.length()); 
+      LOG_DBG("Loaded config: %s", keyValPair.c_str());
     } else LOG_ERR("Unable to parse <%s>, len %u", keyValPair.c_str(), keyValPair.length());
   }
 }
@@ -363,6 +391,7 @@ bool loadConfig() {
   AP_SSID.toUpperCase();
   retrieveConfigMap("hostName", hostName);
   if (!strcmp(hostName, "null") || !strlen(hostName)) {
+    LOG_DBG("Updating hostname %s to %s", hostName, AP_SSID.c_str());
     strcpy(hostName, AP_SSID.c_str());
     updateStatus("hostName", hostName);
   }

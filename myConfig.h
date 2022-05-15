@@ -1,6 +1,9 @@
 // Global declarations
 //
 // s60sc 2021
+/*
+ * @marekful 2022
+ */
 
 #pragma once
 
@@ -15,7 +18,7 @@
 //#define CAMERA_MODEL_M5STACK_UNITCAM // No PSRAM
 //#define CAMERA_MODEL_TTGO_T_JOURNAL // No PSRAM
 #define CAMERA_MODEL_AI_THINKER // Has PSRAM
-#define XCLK_MHZ 20 // fastest camera clock rate 
+#define XCLK_MHZ 15 // fastest camera clock rate (MHz)
 
 // sensors - ensure pins not defined for multiple use
 #define USE_PIR false // true to use PIR for motion detection
@@ -35,7 +38,7 @@
 
 // motion recording parameters - motionDetect.cpp
 #define MOVE_START_CHECKS 5 // checks per second for start
-#define MOVE_STOP_SECS 2 // secs between each check for stop, also determines post motion time
+#define MOVE_STOP_SECS 8 // secs between each check for stop, also determines post motion time
 #define MAX_FRAMES 20000 // maximum number of frames in video before auto close                                                                                                            
 #define MOTION_SEQUENCE 5 // min sequence of changed frames to confirm motion 
 #define NIGHT_SEQUENCE 10 // frames of sequential darkness to avoid spurious day / night switching
@@ -46,6 +49,9 @@
 #define END_BAND 8 // inclusive
 #define CHANGE_THRESHOLD 15 // min difference in pixel comparison to indicate a change
 
+// continuously record video capture to SD in segments
+#define LOOP_RECORDING_MAX_FRAMES 2500
+
 // timelapse - mjpeg2sd.cpp
 // record timelapse avi independently of motion capture, file name has same format as avi except ends with T
 #define SECS_BETWEEN_FRAMES (10 * 60) // too short interval will interfere with other activities
@@ -54,7 +60,7 @@
 
 // Storage - utilsSD.cpp
 #define STORAGE SD_MMC // use of SPIFFS or SD_MMC 
-#define MIN_CARD_FREE_SPACE 100 // Minimum amount of card free Megabytes before FREE_SPACE_MODE action is enabled
+#define MIN_CARD_FREE_SPACE 1000 // Minimum amount of card free Megabytes before FREE_SPACE_MODE action is enabled
 #define FREE_SPACE_MODE 1 // 0 - No Check, 1 - Delete oldest dir, 2 - Upload to ftp and then delete folder on SD 
 #define FORMAT_IF_MOUNT_FAILED false // Auto format the sd card if mount failed. Set to false to not auto format.
 
@@ -66,9 +72,9 @@
 #define RESPONSE_TIMEOUT 10000 // time to wait for FTP or SMTP response
 
 // SMTP - smtp.cpp
-#define USE_SMTP false // whether or not to send email alerts
-#define SMTP_FRAME 5 // which captured frame number to use for email image
-#define MAX_DAILY_EMAILS 10 // too many could cause account suspension
+#define USE_SMTP true // whether or not to send email alerts
+#define SMTP_FRAME 6 // which captured frame number to use for email image
+#define MAX_DAILY_EMAILS 100 // too many could cause account suspension
 
 // batt monitoring - utils.cpp
 #define VOLTAGE_DIVIDER 0 // for use with pin 33 if non zero, see battery monitoring in utils.cpp                                                                   
@@ -84,11 +90,12 @@
 /********************* fixed defines leave as is *******************/ 
  
 #define APP_NAME "ESP-CAM_MJPEG" // max 15 chars
-#define APP_VER "6.2"
+#define APP_VER "7.0"
 
 #define DATA_DIR "/data"
 #define HTML_EXT ".htm"
 #define TEXT_EXT ".txt"
+#define CSS_EXT ".css"
 #define JS_EXT ".js"
 #define INDEX_PAGE_PATH DATA_DIR "/MJPEG2SD" HTML_EXT
 #define CONFIG_FILE_PATH DATA_DIR "/configs" TEXT_EXT
@@ -97,7 +104,7 @@
 #define ONEMEG (1024 * 1024)
 #define MAX_PWD_LEN 64
 #define JSON_BUFF_LEN (32 * 1024) // set big enough to hold all file names in a folder
-#define GITHUB_URL "https://raw.githubusercontent.com/s60sc/ESP32-CAM_MJPEG2SD/master"
+#define GITHUB_URL "https://raw.githubusercontent.com/marekful/ESP32-CAM_MJPEG2SD.2/master"
 
 #define FILE_EXT "avi"
 #define BOUNDARY_VAL "123456789000000000000987654321"
@@ -271,7 +278,11 @@ extern bool autoUpload;
 extern bool dbgMotion;
 extern bool doPlayback;
 extern bool doRecording; // whether to capture to SD or not
-extern bool forceRecord; //Recording enabled by rec button
+extern bool forceRecord; // Recording enabled by rec button
+extern bool forcePlayback;
+extern bool forceStream;
+extern bool loopRecord; // Recording is continuous (by loopRecOn)
+extern bool closeRecordingRequested;
 extern uint8_t FPS;
 extern uint8_t fsizePtr; // index to frameData[] for record
 extern bool isCapturing;
@@ -284,6 +295,9 @@ extern bool nightTime;
 extern bool stopPlayback;
 extern bool useMotion; // whether to use camera for motion detection (with motionDetect.cpp)  
 extern bool timeLapseOn; // enable time lapse recording
+extern bool loopRecOn; // enable continuous recording
+extern bool loopRecAuto; // auto start recording
+extern uint8_t loopLen; // continuous recording length of file segments in seconds
 extern float currentVoltage; 
 
 // buffers

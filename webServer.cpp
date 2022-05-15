@@ -4,6 +4,9 @@
 // otaServer does file uploads
 //
 // s60sc 2022
+/*
+ * @marekful 2022
+ */
 
 #include "myConfig.h"
 
@@ -12,7 +15,23 @@ static void OTAtask(void* parameter);
 
 static char inFileName[FILE_NAME_LEN];
 static char variable[FILE_NAME_LEN]; 
-static char value[FILE_NAME_LEN]; 
+static char value[FILE_NAME_LEN];
+
+static esp_err_t extractQueryKey(httpd_req_t *req, char* variable) {
+  size_t queryLen = httpd_req_get_url_query_len(req) + 1;
+  httpd_req_get_url_query_str(req, variable, queryLen);
+  urlDecode(variable);
+  // extract key 
+  char* endPtr = strchr(variable, '=');
+  if (endPtr != NULL) *endPtr = 0; // split variable into 2 strings, first is key name
+  else {
+    LOG_ERR("Invalid query string %s", variable);
+    httpd_resp_set_status(req, HTTPD_400);
+    httpd_resp_send(req, "Invalid query string", HTTPD_RESP_USE_STRLEN);
+    return ESP_FAIL;
+  }
+  return ESP_OK;
+}
 
 /********************* mjpeg2sd specific function **********************/
 
@@ -23,6 +42,7 @@ static char value[FILE_NAME_LEN];
 #define HDR_BUF_LEN 64
 static const size_t boundaryLen = strlen(JPEG_BOUNDARY);
 static char hdrBuf[HDR_BUF_LEN];
+static fs::FS fpv = STORAGE;
 
 static httpd_handle_t streamServer = NULL; // streamer listens on port 81
 
@@ -36,7 +56,11 @@ static esp_err_t appSpecificHandler(httpd_req_t *req, const char* variable, cons
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, jsonBuff, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
-  } 
+  }
+  else if (!strcmp(variable, "stopStream")) {
+    LOG_INF(" > forcePlayback ");
+    forceStream = false;
+  }
   else if (!strcmp(variable, "updateFPS")) {
     sprintf(jsonBuff, "{\"fps\":\"%u\"}", setFPSlookup(fsizePtr));
     httpd_resp_set_type(req, "application/json");
@@ -51,8 +75,7 @@ static esp_err_t appSpecificHandler(httpd_req_t *req, const char* variable, cons
 static esp_err_t streamHandler(httpd_req_t* req) {
   // send mjpeg stream or single frame
   esp_err_t res = ESP_OK;
-  // if query string present, then single frame required
-  bool singleFrame = (bool)httpd_req_get_url_query_len(req);                                       
+  bool singleFrame = false;                                   
   size_t jpgLen = 0;
   uint8_t* jpgBuf = NULL;
   char hdrBuf[HDR_BUF_LEN];
@@ -60,6 +83,22 @@ static esp_err_t streamHandler(httpd_req_t* req) {
   uint32_t frameCnt = 0;
   uint32_t mjpegKB = 0;
   mjpegStruct mjpegData;
+  // obtain key from query string
+  extractQueryKey(req, variable);
+  strcpy(value, variable + strlen(variable) + 1); // value is now second part of string
+  if (!strcmp(variable, "random")) singleFrame = true;
+  if (!strcmp(variable, "source") && !strcmp(value, "file")) {
+    if (fpv.exists(inFileName)) {
+      LOG_INF("Playback enabled");
+      doPlayback = true;
+    }
+    else LOG_WRN("File %s doesn't exist when Playback requested", inFileName);
+  }
+  else if (!strcmp(variable, "source") && !strcmp(value, "sensor")) {
+    LOG_INF("Playback disabled");
+    doPlayback = false;
+    forceStream = true;
+  }
   httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
   // output header if streaming request
   if (!singleFrame) httpd_resp_set_type(req, STREAM_CONTENT_TYPE);
@@ -81,9 +120,9 @@ static esp_err_t streamHandler(httpd_req_t* req) {
             // send mjpeg header 
             res = httpd_resp_send_chunk(req, JPEG_BOUNDARY, boundaryLen);
             size_t hdrLen = snprintf(hdrBuf, HDR_BUF_LEN-1, JPEG_TYPE, mjpegData.jpegSize);
-            res = httpd_resp_send_chunk(req, hdrBuf, hdrLen);   
+            res = httpd_resp_send_chunk(req, hdrBuf, hdrLen);
             frameCnt++;
-          } 
+          }
           // send buffer 
           res = httpd_resp_send_chunk(req, (const char*)iSDbuffer+buffOffset, jpgLen);
         }
@@ -92,6 +131,7 @@ static esp_err_t streamHandler(httpd_req_t* req) {
     }
   } else { 
     // live images
+    forceStream = true;
     do {
       camera_fb_t* fb;
       if (dbgMotion) {
@@ -127,6 +167,7 @@ static esp_err_t streamHandler(httpd_req_t* req) {
       mjpegKB += jpgLen / 1024;
       if (res != ESP_OK) break;
     } while (!singleFrame);
+    forceStream = false;
     uint32_t mjpegTime = millis() - startTime;
     float mjpegTimeF = float(mjpegTime) / 1000; // secs
     if (singleFrame) LOG_INF("JPEG: %uB in %ums", jpgLen, mjpegTime);
@@ -182,13 +223,17 @@ static esp_err_t fileHandler(httpd_req_t* req, bool download) {
     httpd_resp_send(req, resp_str, HTTPD_RESP_USE_STRLEN);
     return ESP_FAIL;
   } 
+
   if (download) {  
     // download file as attachment, required file name in inFileName
     LOG_INF("Download file: %s, size: %0.1fMB", inFileName, (float)(df.size()/ONEMEG));
     httpd_resp_set_type(req, "application/octet");
     char contentDisp[FILE_NAME_LEN + 50];
+    char contentLength[13];
     sprintf(contentDisp, "attachment; filename=%s", inFileName);
     httpd_resp_set_hdr(req, "Content-Disposition", contentDisp);
+    sprintf(contentLength, "%d", df.size());
+    httpd_resp_set_hdr(req, "Content-Length", contentLength);
   } 
   
   if (sendChunks(df, req)) LOG_INF("Sent %s to browser", inFileName);
@@ -213,22 +258,6 @@ static esp_err_t indexHandler(httpd_req_t* req) {
   return fileHandler(req);
 }
 
-static esp_err_t extractQueryKey(httpd_req_t *req, char* variable) {
-  size_t queryLen = httpd_req_get_url_query_len(req) + 1;
-  httpd_req_get_url_query_str(req, variable, queryLen);
-  urlDecode(variable);
-  // extract key 
-  char* endPtr = strchr(variable, '=');
-  if (endPtr != NULL) *endPtr = 0; // split variable into 2 strings, first is key name
-  else {
-    LOG_ERR("Invalid query string %s", variable);
-    httpd_resp_set_status(req, HTTPD_400);
-    httpd_resp_send(req, "Invalid query string", HTTPD_RESP_USE_STRLEN);
-    return ESP_FAIL;
-  }
-  return ESP_OK;
-}
-
 static esp_err_t webHandler(httpd_req_t* req) {
   // return required web page or component to browser using filename from query string
   size_t queryLen = httpd_req_get_url_query_len(req) + 1;
@@ -248,6 +277,10 @@ static esp_err_t webHandler(httpd_req_t* req) {
   } else if (!strcmp(TEXT_EXT, variable+(strlen(variable)-strlen(TEXT_EXT)))) {
     // any text file
     httpd_resp_set_type(req, "text/plain");
+  } else if (!strcmp(CSS_EXT, variable+(strlen(variable)-strlen(CSS_EXT)))) {
+    // any css file
+    httpd_resp_set_type(req, "text/css");
+    httpd_resp_set_hdr(req, "Cache-Control", "max-age=604800");
   } else LOG_WRN("Unknown file type %s", variable);
   sprintf(inFileName, "%s/%s", DATA_DIR, variable);         
   return fileHandler(req);
@@ -325,6 +358,7 @@ static void uploadHandler() {
   if (upload.status == UPLOAD_FILE_START) {
     if ((strstr(filename.c_str(), HTML_EXT) != NULL)
         || (strstr(filename.c_str(), TEXT_EXT) != NULL)
+        || (strstr(filename.c_str(), CSS_EXT) != NULL)
         || (strstr(filename.c_str(), JS_EXT) != NULL)) {
       // replace relevant file
       char replaceFile[20] = DATA_DIR;
@@ -376,7 +410,8 @@ static void otaFinish() {
   otaServer.sendHeader("Connection", "close");
   otaServer.sendHeader("Access-Control-Allow-Origin", "*");
   otaServer.send(200, "text/plain", (Update.hasError()) ? "OTA update failed, restarting ..." : "OTA update complete, restarting ...");
-  doRestart();
+  //delay(2000);
+  //doRestart();
 }
 
 static void OTAtask(void* parameter) {

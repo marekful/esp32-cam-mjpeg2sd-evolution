@@ -5,13 +5,19 @@
 *
 * s60sc 2020, 2022
 */
-
+/*
+ * @marekful 2022
+ */
 #include "myConfig.h"
 
 // user parameters set from web
 bool useMotion  = true; // whether to use camera for motion detection (with motionDetect.cpp)
 bool dbgMotion  = false;
 bool forceRecord = false; // Recording enabled by rec button
+bool loopRecord = false;
+bool forcePlayback = false;
+bool forceStream = false;
+bool closeRecordingRequested = false;
 
 // status & control fields
 uint8_t FPS;
@@ -63,6 +69,9 @@ static volatile bool isPlaying = false;
 bool isCapturing = false;
 bool stopPlayback = false;
 bool timeLapseOn = false;
+bool loopRecOn = false;
+bool loopRecAuto = false;
+uint8_t loopLen = false;
 
 /**************** timers & ISRs ************************/
 
@@ -217,7 +226,7 @@ static void saveFrame(camera_fb_t* fb) {
   } 
   wTime = millis() - wTime;
   wTimeTot += wTime;
-  LOG_DBG("SD storage time %u ms", wTime);
+  //LOG_DBG("SD storage time %u ms", wTime);
   // whats left or small frame
   memcpy(iSDbuffer+highPoint, fb->buf + jpegSize - jpegRemain, jpegRemain);
   highPoint += jpegRemain;
@@ -234,7 +243,7 @@ static void saveFrame(camera_fb_t* fb) {
   frameCnt++; 
   fTime = millis() - fTime - wTime;
   fTimeTot += fTime;
-  LOG_DBG("Frame processing time %u ms", fTime);
+  //LOG_DBG("Frame processing time %u ms", fTime);
 }
 
 static bool closeAvi() {
@@ -242,7 +251,7 @@ static bool closeAvi() {
   uint32_t vidDuration = millis() - startTime;
   uint32_t vidDurationSecs = lround(vidDuration/1000.0);
   Serial.println("");
-  LOG_DBG("Capture time %u, min seconds: %u ", vidDurationSecs, minSeconds);
+  //LOG_DBG("Capture time %u, min seconds: %u ", vidDurationSecs, minSeconds);
 
   cTime = millis();
   // write remaining frame content to SD
@@ -274,7 +283,7 @@ static bool closeAvi() {
   aviFile.close();
   LOG_DBG("Final SD storage time %lu ms", millis() - cTime);
   uint32_t hTime = millis(); 
-  if (vidDurationSecs >= minSeconds) {
+  if (vidDurationSecs >= minSeconds || !useMotion) {
     // name file to include actual dateTime, FPS, duration, and frame count
     snprintf(aviFileName, sizeof(aviFileName)-1, "%s_%s_%lu_%lu_%u%s.%s", 
       partName, frameData[fsizePtr].frameSizeStr, actualFPSint, vidDurationSecs, frameCnt, haveWav ? "_S" : "", FILE_EXT);
@@ -303,15 +312,43 @@ static bool closeAvi() {
 
     if (autoUpload) ftpFileOrFolder(aviFileName); // Upload it to remote ftp server if requested
     checkFreeSpace();
-    char subjectMsg[50];
-    sprintf(subjectMsg, "Frame %u attached", SMTP_FRAME);
-    emailAlert("Motion Alert", subjectMsg);
-    return true; 
+
+    // Resume loop recording on next frame unless Stop button was pressed.
+    LOG_INF(" >>> %d %d %d", loopRecOn, forceRecord, closeRecordingRequested);
+    if (!closeRecordingRequested) {
+      if (loopRecOn) {
+        loopRecord = true; 
+        forceRecord = true;
+      }
+      // Send motion alert email
+      if (!loopRecord) {
+        char subjectMsg[50];
+        sprintf(subjectMsg, "Frame %u attached", SMTP_FRAME);
+        emailAlert("Motion Alert", subjectMsg);
+      }
+    }
+    closeRecordingRequested = false;
+    return true;  
   } else {
     // delete too small files if exist
     SD_MMC.remove(AVITEMP);
     LOG_WRN("Insufficient capture duration: %u secs", vidDurationSecs);                 
     return false;
+  }
+}
+
+static void closeRecordingOnMaxFrames() {
+  if (!loopRecord && frameCnt >= MAX_FRAMES) {
+    Serial.println("");
+    LOG_INF("Auto closed recording after %u frames [%d %d]", MAX_FRAMES, forceRecord, loopRecord);
+    forceRecord = false;
+  }
+  else if (loopRecord && frameCnt >= FPS * loopLen) {
+    Serial.println("");
+    LOG_INF("Auto closed recording after %u frames (Loop recording ON) [%d %d %d / %d %d]", LOOP_RECORDING_MAX_FRAMES, forceRecord, loopRecord, loopLen, FPS);
+    forceRecord = false;
+    loopRecord = false;
+    delay(100);
   }
 }
 
@@ -339,17 +376,20 @@ static boolean processFrame() {
   }
   
   // either active PIR, Motion, or force start button will start capture, neither active will stop capture
-  isCapturing = forceRecord | captureMotion | capturePIR;
+  isCapturing = forceRecord | captureMotion | capturePIR | loopRecord;
   if (forceRecord || wasRecording || doRecording) {
     if (forceRecord && !wasRecording) wasRecording = true;
     else if (!forceRecord && wasRecording) wasRecording = false;
+
+    if (forceRecord && loopRecOn) loopRecord = true;
+    else if (loopRecOn && loopRecord) forceRecord = true;
     
     if (isCapturing && !wasCapturing) {
       // movement has occurred, start recording, and switch on lamp if night time
       if (AUTO_LAMP && nightTime) controlLamp(true); // switch on lamp
       stopPlaying(); // terminate any playback
       stopPlayback  = true; // stop any subsequent playback
-      LOG_INF("Capture started by %s%s%s", captureMotion ? "Motion " : "", capturePIR ? "PIR" : "",forceRecord ? "Button" : "");
+      LOG_INF("Capture started by %s%s%s%s%s", captureMotion ? "Motion " : "", capturePIR ? "PIR" : "",(forceRecord && !loopRecord) ? "Button" : "",loopRecord ? "Loop Recording" : "", loopRecAuto ? " (Auto Start is ON)" : "");
       openAvi();
       wasCapturing = true;
     }
@@ -359,11 +399,7 @@ static boolean processFrame() {
       saveFrame(fb);
       savedFrame = true;
       showProgress();
-      if (frameCnt >= MAX_FRAMES) {
-        Serial.println("");
-        LOG_INF("Auto closed recording after %u frames", MAX_FRAMES);
-        forceRecord = false;
-      }
+      closeRecordingOnMaxFrames();
     }
     if (!isCapturing && wasCapturing) {
       // movement stopped
@@ -371,7 +407,7 @@ static boolean processFrame() {
       if (AUTO_LAMP) controlLamp(false); // switch off lamp
     }
     wasCapturing = isCapturing;
-    LOG_DBG("============================");
+    //LOG_DBG("============================");
   }
   if (fb != NULL) esp_camera_fb_return(fb);
   fb = NULL; 
@@ -444,7 +480,7 @@ static void readSD() {
   readLen = 0;
   if (!stopPlayback) {
     readLen = playbackFile.read(iSDbuffer+RAMSIZE+CHUNK_HDR, RAMSIZE);
-    LOG_DBG("SD read time %lu ms", millis() - rTime);
+    //LOG_DBG("SD read time %lu ms", millis() - rTime);
   }
   wTimeTot += millis() - rTime;
   xSemaphoreGive(readSemaphore); // signal that ready     
@@ -464,6 +500,8 @@ void openSDfile(const char* streamFile) {
     playbackFPS(aviFileName);
     isPlaying = true; // task control
     doPlayback = true; // browser control
+    forcePlayback = true;
+    forceStream = false;
     readSD(); // prime playback task
   }
 }
@@ -488,7 +526,7 @@ mjpegStruct getNextFrame(bool firstCall) {
     wTimeTot = fTimeTot = hTimeTot = tTimeTot = 0;
   }  
   
-  LOG_DBG("http send time %lu ms", millis() - hTime);
+  //LOG_DBG("http send time %lu ms", millis() - hTime);
   hTimeTot += millis() - hTime;
   uint32_t mTime = millis();
   if (!stopPlayback) {
@@ -500,13 +538,13 @@ mjpegStruct getNextFrame(bool firstCall) {
       memcpy(iSDbuffer, iSDbuffer+RAMSIZE, CHUNK_HDR);
       xSemaphoreTake(readSemaphore, portMAX_DELAY); // wait for read from SD card completed
       buffLen = readLen;
-      LOG_DBG("SD wait time %lu ms", millis()-mTime);
+      //LOG_DBG("SD wait time %lu ms", millis()-mTime);
       wTimeTot += millis()-mTime;
       mTime = millis();  
       // overlap buffer by CHUNK_HDR to prevent jpeg marker being split between buffers                               
       memcpy(iSDbuffer+CHUNK_HDR, iSDbuffer+RAMSIZE+CHUNK_HDR, buffLen); // load new cluster from double buffer
 
-      LOG_DBG("memcpy took %lu ms for %u bytes", millis()-mTime, buffLen);
+      //LOG_DBG("memcpy took %lu ms for %u bytes", millis()-mTime, buffLen);
       fTimeTot += millis() - mTime;
       remainingBuff = true;
       if (buffOffset > RAMSIZE) buffOffset = 4; // special case, marker overlaps end of buffer 
@@ -536,7 +574,7 @@ mjpegStruct getNextFrame(bool firstCall) {
         mTime = millis();
         // wait on playbackSemaphore for rate control
         xSemaphoreTake(playbackSemaphore, portMAX_DELAY);
-        LOG_DBG("frame timer wait %lu ms", millis()-mTime);
+        //LOG_DBG("frame timer wait %lu ms", millis()-mTime);
         tTimeTot += millis()-mTime;
         frameCnt++;
         showProgress();
@@ -573,7 +611,7 @@ mjpegStruct getNextFrame(bool firstCall) {
     checkMemory();      
     LOG_INF("*************************************\n");
     setFPS(saveFPS); // realign with browser
-    stopPlayback = isPlaying = false;
+    stopPlayback = isPlaying = forcePlayback = forceStream = false;
     mjpegData.buffLen = mjpegData.buffOffset = 0; // signal end of jpeg
   }
   hTime = millis();
@@ -585,6 +623,7 @@ void stopPlaying() {
   if (isPlaying) {
     // force stop any currently running playback
     stopPlayback = true;
+    forceStream = false;
     // wait till stopped cleanly, but prevent infinite loop
     uint32_t timeOut = millis();
     while (isPlaying && millis() - timeOut < 2000) delay(10);
@@ -592,6 +631,7 @@ void stopPlaying() {
       Serial.println("");
       LOG_WRN("Force closed playback");
       doPlayback = false; // stop webserver playback
+      forcePlayback = false;
       setFPS(saveFPS);
       xSemaphoreGive(playbackSemaphore);
       xSemaphoreGive(readSemaphore);
@@ -623,7 +663,10 @@ bool prepRecording() {
   aviMutex = xSemaphoreCreateMutex();
   motionMutex = xSemaphoreCreateMutex();
   camera_fb_t* fb = esp_camera_fb_get();
-  if (fb == NULL) LOG_WRN("failed to get camera frame");
+  if (fb == NULL) {
+    LOG_WRN("Failed to get camera frame");
+    return false;
+  }
   else {
     esp_camera_fb_return(fb);
     fb = NULL;
@@ -632,7 +675,14 @@ bool prepRecording() {
   if (USE_PIR) LOG_INF("- attach PIR to pin %u", PIR_PIN);
   if (USE_PIR) LOG_INF("- raise pin %u to 3.3V", PIR_PIN);
   if (useMotion) LOG_INF("- move in front of camera");
+  LOG_INF("- press Record button");
   Serial.println();
+  LOG_INF("%d %d %d", loopRecAuto, loopRecOn, forceRecord);
+  if (loopRecAuto && loopRecOn && !forceRecord) {
+    LOG_INF("Auto starting Loop Recording");
+    loopRecord = true;
+    forceRecord = true;
+  }
   return true;
 }
 
