@@ -64,13 +64,7 @@
       </section>
       <div id="content">
         <div id="sidebar">
-          <nav class="menu buttons">
-            <section id="buttons">
-              <button id="save" class="button-grey" style="float:right;">&#x1F4BE;&nbsp;Save settings</button>
-              <button id="reboot" class="button-grey" style="float:right;">Reboot board</button>
-              <!-- <button id="format" style="float:right;">Format</button> -->
-            </section>
-          </nav>
+          
           <div id="menu-container" class="menu-pinned">
             <nav id="menu-selector" class="menu-pinned">
               <nav class="quick-nav" data-target="#camera-control">&#x1F4F7;</nav>
@@ -78,6 +72,7 @@
               <nav class="quick-nav" data-target="#motion-record">&#x1F4F9;</nav>
               <nav class="quick-nav" data-target="#playback-transfers">&#x1F3A5;</nav>
               <nav class="quick-nav" data-target="#logging-settings">&#x1F527;</nav>
+              <nav class="quick-nav" data-target="#save-settings">&#x1F4BE;</nav>
             </nav>
             <div id="menu-top" class="menu-pinned">
               <nav class="menu panel" id="camera-control">
@@ -552,6 +547,18 @@
                     <label for="smtp_email">SMTP email</label>
                     <input id="smtp_email" name="smtp_email" length=64 placeholder="smtp email to" class="default-action">
                   </div>                          
+                </div>
+              </nav>
+              <nav class="menu panel" id="save-settings">
+                <input type="checkbox" id="savesettings-cb" class="menu-action">
+                <div class="pin-menu" title="Pin / unpin menu">&#x1F4CC;</div>
+                <label for="savesettings-cb" class="nav-toggle">&#x1F4BE;&nbsp;&nbsp;Save Settings&nbsp;&nbsp;</label>
+                <div>
+                  <section id="buttons">
+                    <button id="save" class="button-grey" style="float:right;">Save settings</button>
+                    <button id="reboot" class="button-grey" style="float:right;">Reboot board</button>
+                    <!-- <button id="format" style="float:right;">Format</button> -->
+                  </section>
                 </div>
               </nav>
               <div id="foot-spacer"></div>

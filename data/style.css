@@ -105,8 +105,8 @@ nav.menu {
 }
 
 nav.menu.buttons {
-    min-width: 380px;
-    display: none;
+    min-width: 388px;
+ 
 }
 
 nav.menu.panel {
@@ -121,7 +121,7 @@ nav.menu.panel.active {
     position: relative;
     background: #363636;
     min-width: 60px;
-    min-height: 278px;
+    min-height: 332px;
     border-radius: 4px;
 }
 #menu-container.menu-floating {
@@ -174,7 +174,7 @@ nav.quick-nav {
     cursor: pointer;
     font-size: 150%;
     padding: 4px 0 4px 8px;
-    background: #363434;
+    background: #545353;
 }
 
 nav.quick-nav:hover {
@@ -182,13 +182,13 @@ nav.quick-nav:hover {
 }
 
 nav.quick-nav:active {
-    background: #484747;
-    border-color: #bfb9b9;
+    background: #787878;
+    border-color: #c9c9c9;
 }
 
 nav.quick-nav.active {
-    background: #484747;
-    border-color: #bfb9b9;
+    background: #787878;
+    border-color: #c9c9c9;
 }
 
 #content {
