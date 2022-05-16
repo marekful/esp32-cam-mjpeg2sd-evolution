@@ -89,13 +89,13 @@ static esp_err_t streamHandler(httpd_req_t* req) {
   if (!strcmp(variable, "random")) singleFrame = true;
   if (!strcmp(variable, "source") && !strcmp(value, "file")) {
     if (fpv.exists(inFileName)) {
-      LOG_INF("Playback enabled");
+      LOG_INF("Playback enabled (SD file selected)");
       doPlayback = true;
     }
     else LOG_WRN("File %s doesn't exist when Playback requested", inFileName);
   }
   else if (!strcmp(variable, "source") && !strcmp(value, "sensor")) {
-    LOG_INF("Playback disabled");
+    LOG_INF("Playback disabled while live streaming");
     doPlayback = false;
     forceStream = true;
   }
