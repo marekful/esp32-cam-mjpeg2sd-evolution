@@ -104,7 +104,7 @@
 #define ONEMEG (1024 * 1024)
 #define MAX_PWD_LEN 64
 #define JSON_BUFF_LEN (32 * 1024) // set big enough to hold all file names in a folder
-#define GITHUB_URL "https://raw.githubusercontent.com/marekful/ESP32-CAM_MJPEG2SD.2/master"
+#define GITHUB_URL "https://raw.githubusercontent.com/marekful/esp32-cam-mjpeg2sd-evolution/master"
 
 #define FILE_EXT "avi"
 #define BOUNDARY_VAL "123456789000000000000987654321"
