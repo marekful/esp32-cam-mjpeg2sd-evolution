@@ -42,25 +42,9 @@ function setup() {
     var streamUrl = baseHost + ':81';
     var timer = null;                  
 
-    const hide = el => {
-      el.classList.add('hidden')
-    }
-    const show = el => {
-      el.classList.remove('hidden')
-    }
-
-    const disable = el => {
-      el.classList.add('disabled')
-      el.disabled = true
-    }
-
-    const enable = el => {
-      el.classList.remove('disabled')
-      el.disabled = false
-    }
-
     const updateValue = (el, value, updateRemote) => {
-      updateRemote = updateRemote == null ? true : updateRemote    
+      updateRemote = updateRemote == null ? true : updateRemote
+      el = el instanceof HTMLElement ? el : el[0];
       let initialValue
       if (el.type === 'checkbox') {
         initialValue = el.checked
@@ -83,46 +67,35 @@ function setup() {
         updateConfig(el);
       } else if(!updateRemote){
         if(el.id === "aec"){
-          value ? hide(exposure) : show(exposure)
+          value ? exposure.hide() : exposure.show()
         } else if(el.id === "agc"){
           if (value) {
-            show(gainCeiling)
-            hide(agcGain)
+            $(gainCeiling).show()
+            agcGain.hide()
           } else {
-            hide(gainCeiling)
-            show(agcGain)
+            gainCeiling.hide()
+            agcGain.show()
           }
-        } else if(el.id === "forceRecord"){ 
-            if(value){
-              forceRecord.innerHTML='Stop Recording';
-              recordingIndicator.style.display = 'block';
-              recordingIndicator.classList.add("blinking");
-              forceRecord.classList.add('button-red');
-            }else{
-              forceRecord.innerHTML='Record';
-              recordingIndicator.style.display = 'none';     
-              recordingIndicator.classList.remove("blinking");
-              forceRecord.classList.remove('button-red')
+        } else if(el.id === "forceRecord") { 
+            if (value) {
+              activateRecordButton();
+            } else {
+              deactivateRecordButton();
             }
-        } else if(el.id === "forcePlayback") {
-          console.log(" > > stopPlayback > ", value);
+        } else if (el.id === "forcePlayback") {
+
           if (value) {
-            playbackButton.innerHTML = 'Stop Playback';
-            playbackButton.classList.add("blinking");
-            disableStreamButtons()
+            activatePlaybackButton();
+            disableStreamButtons();
           } else {
-            playbackButton.innerHTML = 'Start Playback';
-            playbackButton.classList.remove("blinking");
-            enableStreamButtons()
+            deactivatePlaybackButton();
+            enableStreamButtons();
           }
         } else if(el.id === "forceStream") {
-          console.log(" > > stopSteam > ", value);
           if (value) {
-            streamButton.innerHTML = 'Stop Stream';
-            streamButton.classList.add("blinking");
+            activateStreamButton();
           } else {
-            streamButton.innerHTML = 'Start Stream';
-            streamButton.classList.remove("blinking");
+            deactivateStreamButton();
           }
         } else if(el.id === "clockUTC"){        
           var uClock = new Date(value.replace(" ","T"));
@@ -146,7 +119,7 @@ function setup() {
           document.title = value;
           document.getElementById("page-title").innerHTML = value;
         } else if(el.id === "awb_gain"){
-          value ? show(wb) : hide(wb)
+          value ? $(wb).show() : $(wb).hide()
         }
       }
     }
@@ -159,6 +132,7 @@ function setup() {
     }
 
     function updateConfig (el) {
+      el = el instanceof HTMLElement ? el : el[0];
       let value
       switch (el.type) {
         case 'checkbox':
@@ -185,7 +159,7 @@ function setup() {
       if(el.id === "framesize"){ 
         r = el.options[el.selectedIndex].text.split('(')[1].replace(')','').split('x')
         srcSize = { width: parseInt(r[0]), height: parseInt(r[1]) } 
-        if (encodeURI(fullScreen.innerHTML) === '%C2%A4') 
+        if (encodeURI(fullScreen.html()) === '%C2%A4') 
           $("#stream-container").css("width", srcSize.width).css("height", srcSize.height );
       }
       const query = `${baseHost}/control?${el.id}=${value}`
@@ -202,7 +176,7 @@ function setup() {
       .querySelectorAll('.close')
       .forEach(el => {
         el.onclick = () => {
-          hide(el.parentNode)
+          $(el.parentNode).hide();
         }
       })
       
@@ -225,9 +199,8 @@ function setup() {
             .forEach(el => {
               updateValue(el, state[el.id], false)
             })
-            console.log(" >> state > ", state, forceRecord, streamButton);
-            if(state['forceRecord'] && forceRecord.innerHTML=='Record')  updateValue(forceRecord, 1, false)
-            else if(!state['forceRecord'] && forceRecord.innerHTML=='Stop Recording')  updateValue(forceRecord, 0, false)
+            if(state['forceRecord'] && forceRecord.data('state-recording'))  updateValue(forceRecord, 1, false)
+            else if(!state['forceRecord'] && !forceRecord.data('state-recording'))  updateValue(forceRecord, 0, false)
             timer = setTimeout(refresh_status_quick, 5000);
         })
         .catch((e) => {
@@ -255,60 +228,59 @@ function setup() {
         });
     }
 
-    const view = document.getElementById('stream')
-    const viewContainer = document.getElementById('stream-container')
-    const configButton = document.getElementById('showConfig')
-    const logButton = document.getElementById('showLog')
-    const otaButton = document.getElementById('OTAupload')
-    const forceRecord = document.getElementById('forceRecord')
-    const recordingIndicator = document.getElementById('recording-indicator')
-    const stillButton = document.getElementById('get-still')
-    const streamButton = document.getElementById('forceStream')
-    const playbackButton = document.getElementById('forcePlayback')
-    const closeButton = document.getElementById('close-stream')  
-    const fullScreen= document.getElementById('full-screen') 
-    const uploadButton = document.getElementById('upload')    
-    const uploadMoveButton = document.getElementById('uploadMove')    
-    const downloadButton = document.getElementById('download') 
-    const deleteButton = document.getElementById('delete') 
-    const rebootButton = document.getElementById('reboot')
-    const saveButton = document.getElementById('save')
-    //const formatButton = document.getElementById('format')
+    const view = $('#stream')
+    const viewContainer = $('#stream-container')
+    const configButton = $('#showConfig')
+    const logButton = $('#showLog')
+    const otaButton = $('#OTAupload')
+    const forceRecord = $('#forceRecord')
+    const recordingIndicator = $('#recording-indicator')
+    const stillButton = $('#get-still')
+    const streamButton = $('#forceStream')
+    const playbackButton = $('#forcePlayback')
+    const closeButton = $('#close-stream')  
+    const fullScreen= $('#full-screen') 
+    const uploadButton = $('#upload')    
+    const uploadMoveButton = $('#uploadMove')    
+    const downloadButton = $('#download') 
+    const deleteButton = $('#delete') 
+    const rebootButton = $('#reboot')
+    const saveButton = $('#save')
+    //const formatButton = $('#format')
     
-    configButton.onclick = () => {
+    configButton.click(() => {
       window.location.href='/web?configs.txt';
-    }
-    logButton.onclick = () => {
+    });
+    logButton.click(() => {
       window.location.href='/web?LOG.htm';
-    }
-    otaButton.onclick = () => {
+    })
+    otaButton.click(() => {
       window.location.href='/web?OTA.htm';
-    }
+    });
     
-    uploadButton.onclick = () => {
+    uploadButton.click(() => {
       updateConfig(uploadButton);
-    }
-    uploadMoveButton.onclick = () => {
+    });
+    uploadMoveButton.click(() => {
       updateConfig(uploadMoveButton);
-    }  
-    downloadButton.onclick = () => {
+    });
+    downloadButton.click(() => {
       var downloadBtVal = $('#download').val();    
       if (downloadBtVal != downloadBtVal.split('.')) window.location.href='/control?download=1';    
-    }
+    });
 
-    deleteButton.onclick = () => {
-      var deleteBt = $('#delete');
-      if(!confirm("Are you sure you want to delete " + deleteBt.val() + " from the SD card?"))
+    deleteButton.click(function() {
+      if(!confirm("Are you sure you want to delete " + $(this).val() + " from the SD card?"))
         return false;
         
       updateConfig(deleteButton);
       
       var sid = $('#sfile');
       sid.find('option:not(:first)').remove(); // remove all except first option
-      sid.append('<option id="del" value="/">Get Folders</option>'); 
-    }
+      sid.append('<option id="del" value="/"List Folders</option>'); 
+    });
 
-    rebootButton.onclick = () => {
+    rebootButton.click(function() {
       stopStream();
       $.ajax({
         url: baseHost + '/control',
@@ -317,11 +289,11 @@ function setup() {
         }
       })
       setTimeout(function () { location.reload(true); }, 10000);
-    }
+    });
   
-  saveButton.onclick = () => {
+    saveButton.onclick = () => {
       const bPlaying = (streamButton.innerHTML == 'Stop Stream')
-      if(bPlaying){
+      if (bPlaying) {
         stopStream();
       }
       $.ajax({
@@ -330,7 +302,7 @@ function setup() {
           "save" : "1"
         },
         success: function(response) {
-          if(bPlaying) startStream()
+          if (bPlaying) startStream()
         }
       })
     }
@@ -341,14 +313,14 @@ function setup() {
       window.stop();
       //Reset to view size
       $("#stream-container").css("width",curSize.width).css("height", curSize.height);
-      streamButton.innerHTML = 'Start Stream'
-      streamButton.classList.remove("blinking")
       $.ajax({
         url: baseHost + '/control',
         data: {
           "stopStream": "1"
         }
-      })
+      }).then(() => {
+        deactivateStreamButton();
+      });
     }
 
     const stopPlayback = () => {
@@ -356,31 +328,61 @@ function setup() {
       window.stop();
       //Reset to view size
       $("#stream-container").css("width",curSize.width).css("height", curSize.height);
-      playbackButton.innerHTML = 'Start Playback'
-      playbackButton.classList.remove("blinking")
-      enableStreamButtons()
+      deactivatePlaybackButton();
+      enableStreamButtons();
       $.ajax({
         url: baseHost + '/control',
         data: {
           "stopStream": "1"
         }
-      })
+      }).then(() => {
+        deactivatePlaybackButton();
+        viewContainer.hide();
+      });
     }
 
     const startStream = () => {
-      view.src = `${streamUrl}/stream?source=sensor`
-      streamButton.innerHTML = 'Stop Stream'
-      streamButton.classList.add("blinking")
+      view.attr('src', `${streamUrl}/stream?source=sensor`);
     }
 
     const activatePlaybackButton = () => {
-      playbackButton.innerHTML = 'Stop Playback'
-      playbackButton.classList.add("blinking")
+      playbackButton.data('state-streaming-file', true);
+      playbackButton.html(playbackButton.data('label-active'));
+      playbackButton.addClass("blinking");
     }
     
     const deactivatePlaybackButton = () => {
-      playbackButton.innerHTML = 'Playback'
-      playbackButton.classList.remove("blinking")
+      playbackButton.data('state-streaming-file', false);
+      playbackButton.html(playbackButton.data('label-inactive'));
+      playbackButton.removeClass("blinking");
+    }
+
+    const activateRecordButton = () => {
+      forceRecord.data('state-recording', true);
+      forceRecord.addClass('button-red');
+      forceRecord.html($(this).data('label-active'));
+      recordingIndicator.show();
+      recordingIndicator.addClass("blinking");
+    }
+    
+    const deactivateRecordButton = () => {
+      forceRecord.data('state-recording', false);
+      forceRecord.removeClass('button-red');
+      forceRecord.html($(this).data('label-inactive'));
+      recordingIndicator.removeClass("blinking");
+      recordingIndicator.hide();
+    }
+
+    const activateStreamButton = () => {
+      streamButton.data('state-streaming-live', true);
+      streamButton.html(streamButton.data('label-active'));
+      streamButton.addClass('blinking');
+    }
+    
+    const deactivateStreamButton = () => {
+      streamButton.data('state-streaming-live', false);
+      streamButton.html(streamButton.data('label-inactive'));
+      streamButton.removeClass('blinking');
     }
     
     const startPlayback = () => {
@@ -390,37 +392,43 @@ function setup() {
     }
 
     const disableStreamButtons = () => {
-      stillButton.setAttribute("disabled", "disabled")
-      streamButton.setAttribute("disabled", "disabled")
-      forceRecord.setAttribute("disabled", "disabled")
+      stillButton.prop('disabled', true);
+      streamButton.prop('disabled', true);
+      forceRecord.prop('disabled', true);
     }
     
     const enableStreamButtons = () => {
-      stillButton.removeAttribute("disabled")
-      streamButton.removeAttribute("disabled")
-      forceRecord.removeAttribute("disabled")
+      stillButton.prop('disabled', false);
+      streamButton.prop('disabled', false);
+      forceRecord.prop('disabled', false);
     }
-    
-    view.onload = function () {  	
-      srcSize = { width: view.width, height: view.height } 
-      if(fullScreen.innerHTML !== '#')
-        $("#stream-container").css("width",srcSize.width).css("height", srcSize.height);
-      show(viewContainer)    
-    };
 
-    forceRecord.onclick = () => {    
+    view.on('load', function() {
+      console.log('view.onload > ');
+      srcSize = { width: view.width, height: view.height } 
+      if(fullScreen.html() !== '#')
+        $("#stream-container").css("width",srcSize.width).css("height", srcSize.height);
+        viewContainer.show();
+    });
+
+    view.on('error', function() {
+      console.log('view.onerror > ');
+      //deactivateStreamButton();
+    });
+
+    view.on('abort', function() {
+      console.log('view.onerror > ');
+      //deactivateStreamButton();
+    });
+
+    forceRecord.click(function() {    
       var recOn = 0;
-      if(forceRecord.innerHTML == 'Record'){
-        recordingIndicator.style.display = 'block'
-        recordingIndicator.classList.add("blinking")
-        forceRecord.classList.add('button-red')
-        forceRecord.innerHTML='Stop Recording'
+      console.log(' > recbtn > ', $(this).data('state-recording'));
+      if( !$(this).data('state-recording')) {
+        activateRecordButton();
         var recOn = 1;
-      }else{
-        recordingIndicator.classList.remove("blinking")
-        recordingIndicator.style.display = 'none'
-        forceRecord.classList.remove('button-red')
-        forceRecord.innerHTML='Record'
+      } else {
+        deactivateRecordButton();
         var recOn = 0;
       }
       $.ajax({
@@ -429,40 +437,42 @@ function setup() {
           "forceRecord": recOn
         }
       })
-    }  
+    });
 
-    stillButton.onclick = () => {
+    stillButton.click(() => {
       stopStream()
-      view.src = `${streamUrl}/stream?random=${Date.now()}`
-      show(viewContainer)
-    }
-    closeButton.onclick = (e) => {
+      view.attr('src', `${streamUrl}/stream?random=${Date.now()}`);
+    });
+
+    closeButton.click((e) => {
       stopStream()
-      hide(viewContainer)
+      viewContainer.hide()
       e.stopPropagation();
       //Exit from full screen
-      if(fullScreen.innerHTML === '-' || fullScreen.innerHTML === '#'){
+      if(fullScreen.html() === '-' || fullScreen.html() === '#'){
         toggleFullScreen()
       }
-    }
+    });
 
-    streamButton.onclick = () => {
-      const streamEnabled = streamButton.innerHTML === 'Stop Stream'
+    streamButton.click(function() {
+      const streamEnabled = $(this).data('state-streaming-live');
+      console.log('streambtn click > ', streamEnabled, $(this).data());
       if (streamEnabled) {
-        stopStream()
+        stopStream();
+        viewContainer.hide();
       } else {
-        startStream()
+        startStream();
       }
-    }
+    });
     
-    playbackButton.onclick = () => {
-      const streamEnabled = playbackButton.innerHTML === 'Stop Playback'
+    playbackButton.click(() => {
+      const streamEnabled = playbackButton.data('state-streaming-file');
       if (streamEnabled) {
-        stopPlayback()
+        stopPlayback();
       } else {
-        startPlayback()
+        startPlayback();
       }
-    }
+    });
     
     function calculateAspectRatioFit(srcWidth, srcHeight, maxWidth, maxHeight) {
       var ratio = Math.min(maxWidth / srcWidth, maxHeight / srcHeight);
@@ -471,36 +481,36 @@ function setup() {
     
     //Resize player window,  #. Maximized - 2. Original - 3. Fullscreen aspect - 4. Fullscreen 
     function toggleFullScreen() {        
-    if (fullScreen.innerHTML === '#') { //Maximized -> Original 
+    if (fullScreen.html() === '#') { //Maximized -> Original 
         $("#stream-container").css("width", srcSize.width).css("height", srcSize.height);
-        fullScreen.innerHTML = '&curren;'
-    } else if (encodeURI(fullScreen.innerHTML) === '%C2%A4') { //Original -> Fullscreen aspect
-        viewContainer.requestFullscreen()
+        fullScreen.html('&curren;')
+    } else if (encodeURI(fullScreen.html()) === '%C2%A4') { //Original -> Fullscreen aspect
+        viewContainer[0].requestFullscreen()
         var r = calculateAspectRatioFit(srcSize.width, srcSize.height, window.screen.availWidth, window.screen.availHeight)
         $("#stream-container").css("width",r.width).css("height", r.height);
         $("#stream").css("width","100%").css("height","auto")
-        fullScreen.innerHTML = '&rect;'
-    } else  if (encodeURI(fullScreen.innerHTML) === '%E2%96%AD') { //Fullscreen aspect -> Fullscreen       
+        fullScreen.html('&rect;')
+    } else  if (encodeURI(fullScreen.html()) === '%E2%96%AD') { //Fullscreen aspect -> Fullscreen       
         $("#stream-container").css("width", window.screen.availWidth).css("height", window.screen.availHeight);
         $("#stream").css("width","100%").css("height","100%")
-        fullScreen.innerHTML = '-'
+        fullScreen.html('-')
       } else { //Fullscreen -> Maximized
         document.exitFullscreen()
         $("#stream-container").css("width", "100%").css("height", "auto");
-        fullScreen.innerHTML = '#'
+        fullScreen.html('#')
       }
     }
 
   //Maximize - Minimize video on click
-    viewContainer.onclick = () => {
+    viewContainer.click(() => {
       toggleFullScreen()
-    }
+    });
     //Maximize - Minimize on button click
-    fullScreen.onclick = (e) => {
+    fullScreen.click((e) => {
       e.stopPropagation();
       console.log("fullScreen click")
       toggleFullScreen()
-    }
+    });
     
     // Attach default on change action
     document
@@ -521,43 +531,43 @@ function setup() {
     }
     
     // Gain
-    const agc = document.getElementById('agc')
-    const agcGain = document.getElementById('agc_gain-group')
-    const gainCeiling = document.getElementById('gainceiling-group')
-    agc.onchange = () => {
+    const agc = $('#agc');
+    const agcGain = $('#agc_gain-group');
+    const gainCeiling = $('#gainceiling-group');
+    agc.change(function() {
       updateConfig(agc)
-      if (agc.checked) {
-        show(gainCeiling)
-        hide(agcGain)
+      if (agc.prop('checked')) {
+        gainCeiling.show();
+        agcGain.hide();
       } else {
-        hide(gainCeiling)
-        show(agcGain)
+        gainCeiling.hide();
+        agcGain.show();
       }
-    }
+    });
 
     // Exposure
-    const aec = document.getElementById('aec')
-    const exposure = document.getElementById('aec_value-group')
-    aec.onchange = () => {
-      updateConfig(aec)
-      aec.checked ? hide(exposure) : show(exposure)
-    }
+    const aec = $('#aec');
+    const exposure = $('#aec_value-group');
+    aec.change(function() {
+      updateConfig($(this))
+      $(this).prop('checked') ? exposure.hide() : exposure.show()
+    });
 
     // AWB
-    const awb = document.getElementById('awb_gain')
-    const wb = document.getElementById('wb_mode-group')
-    awb.onchange = () => {
+    const awb = $('#awb_gain');
+    const wb = $('#wb_mode-group');
+    awb.change(function() {
       updateConfig(awb)
-      awb.checked ? show(wb) : hide(wb)
-    }
+      awb.prop('checked') ? wb.show() : wb.hide()
+    });
 
     // Logging mode
-    const logMode = document.getElementById('logMode')
-    logMode.onchange = () => {   
-      var selection = logMode.value;
-      if(selection==2){      
+    const logMode = $('#logMode');
+    logMode.change(function() {
+      var selection = logMode.value();
+      if(selection == 2){      
         if(!confirm("Press ok and within 30 seconds go to remote host and type: telnet camera_ip 443")) {
-          logMode.value=0;
+          logMode.value(0);
           return false;
         }
       }
@@ -567,17 +577,17 @@ function setup() {
           "logMode": selection
         },   
         success: function(response) {
-          console.log('Set debug mode',selection);
+          console.log('Set debug mode', selection);
         }
       }); 
-    }
+    });
 
     // framesize
-    const framesize = document.getElementById('framesize')
-    framesize.onchange = () => {
+    const framesize = $('#framesize');
+    framesize.change(function() {
       updateConfig(framesize)
-      updateFPS()
-    }
+      updateFPS();
+    });
 
     function updateFPS() {
       // update default FPS to match selected framesize 
@@ -610,8 +620,8 @@ function setup() {
       //Not a file list
       var pathDir = selection.substring(0,selection.lastIndexOf("/"))
       if(pathDir=="") sid.find('option:not(:first)').remove(); // remove all except first option
-      if(selection.substr(-4) === '.avi') playbackButton.removeAttribute("disabled");
-      else playbackButton.setAttribute("disabled", "disabled");
+      if(selection.substr(-4) === '.avi' && !recordingIndicator.data('state-recording')) playbackButton.prop("disabled", false);
+      else playbackButton.prop("disabled", true);
       $.ajax({
         url: baseHost + '/control',
         data: {

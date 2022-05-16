@@ -48,12 +48,12 @@
         <nav id="maintoolbar">
           <ul class="navtop">
             <li><span id="recording-indicator" style="float: right; display: none;"></span></li>
-            <li><button id="forceRecord" class="default-action" style="float:right;">Record</button></li>                  
+            <li><button id="forceRecord" class="default-action" data-state-recording="false" data-label-active="Stop Recording" data-label-inactive="Start Recording" style="float:right;">Start Recording</button></li>                  
             <li><div class="sep"></div></li>
-            <li><button id="forceStream" class="default-action" style="float:right;">Start Stream</button></li>
+            <li><button id="forceStream" class="default-action" data-state-streaming-live="false" data-label-active="Stop Stream" data-label-inactive="Start Stream" style="float:right;">Start Stream</button></li>
             <li><button id="get-still" style="float:right;">Get Still</button></li>
             <li><div class="sep"></div></li>
-            <li><button id="forcePlayback" class="default-action" style="float:right;" disabled="disabled" title="Select a video in 'Playback & File Transfers' to activate playback.">Start Playback</button></li>
+            <li><button id="forcePlayback" class="default-action" data-state-streaming-file="false" data-label-active="Stop Playback" data-label-inactive="Start Playback" style="float:right;" disabled="disabled" title="Select a video in 'Playback & File Transfers' to activate playback.">Start Playback</button></li>
           </ul>
           <ul class="navtop navbar-grey">
             <li><button id="showLog" value="1">Show Log</button></li>
@@ -65,8 +65,8 @@
       <div id="content">
         <div id="sidebar">
           
-          <div id="menu-container" class="menu-pinned">
-            <nav id="menu-selector" class="menu-pinned">
+          <div id="menu-container" class="menu-floating">
+            <nav id="menu-selector" class="menu-floating">
               <nav class="quick-nav" data-target="#camera-control">&#x1F4F7;</nav>
               <nav class="quick-nav" data-target="#picture-settings">&#x1F4FA;</nav>
               <nav class="quick-nav" data-target="#motion-record">&#x1F4F9;</nav>
@@ -74,7 +74,7 @@
               <nav class="quick-nav" data-target="#logging-settings">&#x1F527;</nav>
               <nav class="quick-nav" data-target="#save-settings">&#x1F4BE;</nav>
             </nav>
-            <div id="menu-top" class="menu-pinned">
+            <div id="menu-top" class="menu-floating">
               <nav class="menu panel" id="camera-control">
                 <input type="checkbox" id="control-cb" class="menu-action" checked="checked">
                 <div class="pin-menu" title="Pin / unpin menu">&#x1F4CC;</div>
@@ -399,7 +399,7 @@
                 <div>
                   <div class="input-group" id="sfiles-group" style="display: grid;">
                     <label for="sfiles">Select folder / file</label>                          
-                    <select title="Select sd card file or folder" id="sfile" size="8" style="font-size: 90%;">
+                    <select title="Select sd card file or folder" id="sfile" size="16" style="font-size: 90%;">
                       <option value="/#reset" selected="selected">-- Select --</option>
                       <option value="/">Get Folders</option>
                       <option value="/#current">List current (today)</option>
