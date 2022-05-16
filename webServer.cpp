@@ -88,7 +88,10 @@ static esp_err_t streamHandler(httpd_req_t* req) {
   strcpy(value, variable + strlen(variable) + 1); // value is now second part of string
   if (!strcmp(variable, "random")) singleFrame = true;
   if (!strcmp(variable, "source") && !strcmp(value, "file")) {
-    if (fpv.exists(inFileName)) {
+    if (forceRecord) {
+      LOG_WRN("Playback not enabled while %srecording", loopRecord ? "continuous ": "");
+    }
+    else if (fpv.exists(inFileName)) {
       LOG_INF("Playback enabled (SD file selected)");
       doPlayback = true;
     }
