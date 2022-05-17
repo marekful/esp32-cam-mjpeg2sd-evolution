@@ -22,7 +22,13 @@ function setup() {
         $(this).siblings().removeClass('active');
         $(this).toggleClass('active');
         
-        
+        if (!$('nav.panel').hasClass('active')) {
+          $(this).parent().addClass('menu-closed');
+          $(this).parent().removeClass('menu-open');
+        } else {
+          $(this).parent().removeClass('menu-closed');
+          $(this).parent().addClass('menu-open');
+        }
     });
 
     $('.pin-menu').click(() => {
@@ -342,44 +348,52 @@ function setup() {
     }
 
     const startStream = () => {
+      disableStreamButtons();
+      activateStreamButton();
       view.attr('src', `${streamUrl}/stream?source=sensor`);
     }
 
     const activatePlaybackButton = () => {
+      if (playbackButton.data('state-streaming-file')) return;
       playbackButton.data('state-streaming-file', true);
       playbackButton.html(playbackButton.data('label-active'));
       playbackButton.addClass("blinking");
     }
     
     const deactivatePlaybackButton = () => {
+      if (!playbackButton.data('state-streaming-file')) return;
       playbackButton.data('state-streaming-file', false);
       playbackButton.html(playbackButton.data('label-inactive'));
       playbackButton.removeClass("blinking");
     }
 
     const activateRecordButton = () => {
+      if (forceRecord.data('state-recording')) return;
       forceRecord.data('state-recording', true);
       forceRecord.addClass('button-red');
-      forceRecord.html($(this).data('label-active'));
+      forceRecord.html(forceRecord.data('label-active'));
       recordingIndicator.show();
       recordingIndicator.addClass("blinking");
     }
     
     const deactivateRecordButton = () => {
+      if (!forceRecord.data('state-recording')) return;
       forceRecord.data('state-recording', false);
       forceRecord.removeClass('button-red');
-      forceRecord.html($(this).data('label-inactive'));
+      forceRecord.html(forceRecord.data('label-inactive'));
       recordingIndicator.removeClass("blinking");
       recordingIndicator.hide();
     }
 
     const activateStreamButton = () => {
+      if (streamButton.data('state-streaming-live')) return;
       streamButton.data('state-streaming-live', true);
       streamButton.html(streamButton.data('label-active'));
       streamButton.addClass('blinking');
     }
     
     const deactivateStreamButton = () => {
+      if (!streamButton.data('state-streaming-live')) return;
       streamButton.data('state-streaming-live', false);
       streamButton.html(streamButton.data('label-inactive'));
       streamButton.removeClass('blinking');
@@ -405,6 +419,7 @@ function setup() {
 
     view.on('load', function() {
       console.log('view.onload > ');
+      enableStreamButtons();
       srcSize = { width: view.width, height: view.height } 
       if(fullScreen.html() !== '#')
         $("#stream-container").css("width",srcSize.width).css("height", srcSize.height);
@@ -423,9 +438,9 @@ function setup() {
 
     forceRecord.click(function() {    
       var recOn = 0;
-      console.log(' > recbtn > ', $(this).data('state-recording'));
       if( !$(this).data('state-recording')) {
         activateRecordButton();
+        forceRecord.prop('disabled', true);
         var recOn = 1;
       } else {
         deactivateRecordButton();
@@ -436,11 +451,14 @@ function setup() {
         data: {
           "forceRecord": recOn
         }
+      }).then(function() {
+        forceRecord.prop('disabled', false);
       })
     });
 
     stillButton.click(() => {
-      stopStream()
+      stopStream();
+      disableStreamButtons();
       view.attr('src', `${streamUrl}/stream?random=${Date.now()}`);
     });
 

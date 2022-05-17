@@ -101,7 +101,7 @@ nav.menu {
   padding: 8px;
   border-radius: 0 4px 4px 4px;
   margin-bottom: 3px;
-  /* float: left; */
+  border: 1px solid #7c7c7c;
 }
 
 nav.menu.buttons {
@@ -111,15 +111,27 @@ nav.menu.buttons {
 
 nav.menu.panel {
     display: none;
+    min-height: 330px;
 }
 
 nav.menu.panel.active {
     display: block;
 }
 
+#menu-top.menu-floating nav.menu.panel {
+    border-radius: 0 4px 4px 4px;
+}
+
+#menu-top.menu-pinned nav.menu.panel {
+    border-radius: 0 4px 4px 0;
+    border-left: none;
+    height: 112%;
+    left: -1px;
+    position: relative;
+}
+
 #menu-container {
     position: relative;
-    background: #363636;
     min-width: 60px;
     min-height: 332px;
     border-radius: 4px;
@@ -138,17 +150,21 @@ nav.menu.panel.active {
 }
 #menu-top.menu-floating {
     position: absolute;
-    left: 56px;
+    left: 58px;
     z-index: 2;
 }
 #menu-top.menu-pinned {
     position: initial;
     left: initial;
     float: left;
+    z-index: 4;
+    border-left: none;
 }
 
 #menu-selector {
-    
+    z-index: 4;
+    background: #363636;
+    width: 58px;
 }
 #menu-selector.menu-floating {
     position: absolute;
@@ -156,6 +172,28 @@ nav.menu.panel.active {
 #menu-selector.menu-pinned {
     position: relative;
     float: left;
+}
+
+.menu-floating.menu-open {
+    border-radius: 4px 0 0 4px;
+    border: 1px solid #7c7c7c;
+    border-right: none;
+}
+
+.menu-floating.menu-closed {
+    border-radius: 4px;
+    border: 1px solid #7c7c7c;
+}
+
+.menu-pinned.menu-open {
+    border-radius: 4px 0 0 4px;
+    border: 1px solid #7c7c7c;
+    
+}
+
+.menu-pinnded.menu-closed {
+    border-radius: 4px;
+    border: 1px solid #7c7c7c;
 }
 
 .pin-menu {
@@ -574,10 +612,10 @@ input[type=range]:active + output {
 }
 #recording-indicator {
   display: inline-block;
-  width: 20px;
-  height: 20px;
+  width: 12px;
+  height: 12px;
   padding: 4px;
-  margin: 6px;
+  margin: 9px;
   background-color: #e71216;
   border-radius: 16px;
   border: 2px white solid;
@@ -587,4 +625,18 @@ input[type=range]:active + output {
   50% {
     opacity: .4;
   }
+}
+
+span.fliph {
+    display: inline-block;
+    -moz-transform: scale(-1, 1);
+    -webkit-transform: scale(-1, 1);
+    -o-transform: scale(-1, 1);
+    -ms-transform: scale(-1, 1);
+    transform: scale(-1, 1);
+    filter: fliph; /*IE*/
+}
+
+.record {
+    color: #e71111;
 }
