@@ -110,7 +110,7 @@ function setup() {
           var timeDiff = Math.abs(nowUTC - uClock.getTime()) / 10;
           console.log(' > > ', nowUTC, timeDiff, now.getTimezoneOffset());    
           console.log("Now: " + now.toISOString() + " browser: " + uClock.toISOString() + " Local time diff to browser: " + timeDiff/100 +" sec");
-          if(timeDiff > 2000){ //2 sec
+          if( false /* timeDiff > 2000 */){ //2 sec
             now = new Date();
             var value = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString();
             console.log("Sync to time: " + value );
@@ -401,7 +401,7 @@ function setup() {
     }
     
     const startPlayback = () => {
-      view.src = `${streamUrl}/stream?source=file`
+      view.attr('src', `${streamUrl}/stream?source=file`);
       activatePlaybackButton()
       disableStreamButtons()
     }
@@ -409,13 +409,11 @@ function setup() {
     const disableStreamButtons = () => {
       stillButton.prop('disabled', true);
       streamButton.prop('disabled', true);
-      forceRecord.prop('disabled', true);
     }
     
     const enableStreamButtons = () => {
       stillButton.prop('disabled', false);
       streamButton.prop('disabled', false);
-      forceRecord.prop('disabled', false);
     }
 
     view.on('load', function() {
@@ -429,12 +427,13 @@ function setup() {
 
     view.on('error', function() {
       console.log('view.onerror > ');
-      //deactivateStreamButton();
+      enableStreamButtons();
+
     });
 
     view.on('abort', function() {
       console.log('view.onerror > ');
-      //deactivateStreamButton();
+      enableStreamButtons();
     });
 
     forceRecord.click(function() {    
@@ -475,7 +474,6 @@ function setup() {
 
     streamButton.click(function() {
       const streamEnabled = $(this).data('state-streaming-live');
-      console.log('streambtn click > ', streamEnabled, $(this).data());
       if (streamEnabled) {
         stopStream();
         viewContainer.hide();
