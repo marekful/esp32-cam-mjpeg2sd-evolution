@@ -490,20 +490,21 @@ static void readSD() {
 
 void openSDfile(const char* streamFile) {
   // open selected file on SD for streaming
-  if (stopPlayback) LOG_WRN("Playback refused - capture in progress");
-  else {
-    stopPlaying(); // in case already running
-    strcpy(aviFileName, streamFile);
-    LOG_INF("Playing %s", aviFileName);
-    playbackFile = SD_MMC.open(aviFileName, FILE_READ);
-    playbackFile.seek(AVI_HEADER_LEN, SeekSet); // skip over header
-    playbackFPS(aviFileName);
-    isPlaying = true; // task control
-    doPlayback = true; // browser control
-    forcePlayback = true;
-    forceStream = false;
-    readSD(); // prime playback task
+  if (stopPlayback) {
+    LOG_WRN("Playback refused - capture in progress");
+    return;
   }
+  stopPlaying(); // in case already running
+  strcpy(aviFileName, streamFile);
+  LOG_INF("Playing %s", aviFileName);
+  playbackFile = SD_MMC.open(aviFileName, FILE_READ);
+  playbackFile.seek(AVI_HEADER_LEN, SeekSet); // skip over header
+  playbackFPS(aviFileName);
+  isPlaying = true; // task control
+  doPlayback = true; // browser control
+  forcePlayback = true;
+  forceStream = false;
+  readSD(); // prime playback task
 }
 
 mjpegStruct getNextFrame(bool firstCall) {

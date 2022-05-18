@@ -52,7 +52,8 @@ static esp_err_t appSpecificHandler(httpd_req_t *req, const char* variable, cons
   if (!strcmp(variable, "sfile")) {
     // get folders / files on SD, save received filename if has required extension
     strcpy(inFileName, value);
-    doPlayback = listDir(inFileName, jsonBuff, JSON_BUFF_LEN, FILE_EXT); // browser control
+    if (!forceRecord) doPlayback = listDir(inFileName, jsonBuff, JSON_BUFF_LEN, FILE_EXT); // browser control
+    else strcpy(jsonBuff, "{}");
     httpd_resp_set_type(req, "application/json");
     httpd_resp_send(req, jsonBuff, HTTPD_RESP_USE_STRLEN);
     return ESP_OK;
@@ -86,10 +87,15 @@ static esp_err_t streamHandler(httpd_req_t* req) {
   // obtain key from query string
   extractQueryKey(req, variable);
   strcpy(value, variable + strlen(variable) + 1); // value is now second part of string
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+
   if (!strcmp(variable, "random")) singleFrame = true;
   if (!strcmp(variable, "source") && !strcmp(value, "file")) {
     if (forceRecord) {
-      LOG_WRN("Playback not enabled while %srecording", loopRecord ? "continuous ": "");
+      LOG_WRN("Playback not enabled while recording recording%s", loopRecord ? " (Loop recording ON) ": "");
+      httpd_resp_set_type(req, "application/json");
+      httpd_resp_send(req, jsonBuff, HTTPD_RESP_USE_STRLEN);
+      return ESP_OK;
     }
     else if (fpv.exists(inFileName)) {
       LOG_INF("Playback enabled (SD file selected)");
@@ -102,7 +108,7 @@ static esp_err_t streamHandler(httpd_req_t* req) {
     doPlayback = false;
     forceStream = true;
   }
-  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  
   // output header if streaming request
   if (!singleFrame) httpd_resp_set_type(req, STREAM_CONTENT_TYPE);
 
