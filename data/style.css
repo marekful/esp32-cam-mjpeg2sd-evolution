@@ -123,8 +123,7 @@ nav.menu.panel.active {
 }
 
 #menu-top.menu-pinned nav.menu.panel {
-    border-radius: 0 4px 4px 0;
-    border-left: none;
+    border-radius: 0 4px 4px 4px;
     height: 112%;
     left: -1px;
     position: relative;
@@ -135,6 +134,8 @@ nav.menu.panel.active {
     min-width: 60px;
     min-height: 332px;
     border-radius: 4px;
+    left: 2px;
+    top: 4px;
 }
 #menu-container.menu-floating {
     display: table;
@@ -172,6 +173,9 @@ nav.menu.panel.active {
 #menu-selector.menu-pinned {
     position: relative;
     float: left;
+    height: 100%;
+    border-right: none;
+    z-index: 5;
 }
 
 .menu-floating.menu-open {
@@ -638,5 +642,10 @@ span.fliph {
 }
 
 .record {
-    color: #e71111;
+
+}
+
+#stream-container {
+    margin: 4px 8px 42px 8px;
+    border: 1px solid dimgray;
 }

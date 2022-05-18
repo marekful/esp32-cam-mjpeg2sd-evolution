@@ -107,7 +107,8 @@ function setup() {
           var uClock = new Date(value.replace(" ","T"));
           var now = new Date();
           var nowUTC = now.getTime() + now.getTimezoneOffset() * 60000;
-          var timeDiff = Math.abs(nowUTC - uClock.getTime());        
+          var timeDiff = Math.abs(nowUTC - uClock.getTime()) / 10;
+          console.log(' > > ', nowUTC, timeDiff, now.getTimezoneOffset());    
           console.log("Now: " + now.toISOString() + " browser: " + uClock.toISOString() + " Local time diff to browser: " + timeDiff/100 +" sec");
           if(timeDiff > 2000){ //2 sec
             now = new Date();
@@ -297,8 +298,8 @@ function setup() {
       setTimeout(function () { location.reload(true); }, 10000);
     });
   
-    saveButton.onclick = () => {
-      const bPlaying = (streamButton.innerHTML == 'Stop Stream')
+    saveButton.click(function() {
+      const bPlaying = (streamButton.data('state-streaming-live'));
       if (bPlaying) {
         stopStream();
       }
@@ -308,10 +309,10 @@ function setup() {
           "save" : "1"
         },
         success: function(response) {
-          if (bPlaying) startStream()
+          if (bPlaying) startStream();
         }
       })
-    }
+    });
     
     var srcSize = { width: 0, height: 0 };
     const stopStream = () => {
