@@ -374,7 +374,7 @@ static boolean processFrame() {
     capturePIR = digitalRead(PIR_PIN);
     if (!capturePIR && !isCapturing && !useMotion) checkMotion(fb, isCapturing); // to update light level
   }
-  
+
   // either active PIR, Motion, or force start button will start capture, neither active will stop capture
   isCapturing = forceRecord | captureMotion | capturePIR | loopRecord;
   if (forceRecord || wasRecording || doRecording) {
@@ -527,7 +527,7 @@ mjpegStruct getNextFrame(bool firstCall) {
     wTimeTot = fTimeTot = hTimeTot = tTimeTot = 0;
   }  
   
-  //LOG_DBG("http send time %lu ms", millis() - hTime);
+  LOG_DBG("http send time %lu ms, [%d %d]", millis() - hTime, remainingBuff, remainingFrame);
   hTimeTot += millis() - hTime;
   uint32_t mTime = millis();
   if (!stopPlayback) {
@@ -538,6 +538,7 @@ mjpegStruct getNextFrame(bool firstCall) {
       // move final bytes to buffer start in case jpeg marker at end of buffer
       memcpy(iSDbuffer, iSDbuffer+RAMSIZE, CHUNK_HDR);
       xSemaphoreTake(readSemaphore, portMAX_DELAY); // wait for read from SD card completed
+      LOG_DBG("Waited %lu ms for readSemaphore", millis() - mTime);
       buffLen = readLen;
       //LOG_DBG("SD wait time %lu ms", millis()-mTime);
       wTimeTot += millis()-mTime;
@@ -563,6 +564,7 @@ mjpegStruct getNextFrame(bool firstCall) {
         mjpegData.buffOffset = 0; // from start of buff
         mjpegData.jpegSize = 0; 
         stopPlayback = completedPlayback = true;
+        LOG_DBG("GetNextFrame -> end of playback");
         return mjpegData;
       } else {
         // get jpeg frame size
@@ -575,7 +577,7 @@ mjpegStruct getNextFrame(bool firstCall) {
         mTime = millis();
         // wait on playbackSemaphore for rate control
         xSemaphoreTake(playbackSemaphore, portMAX_DELAY);
-        //LOG_DBG("frame timer wait %lu ms", millis()-mTime);
+        LOG_DBG("frame timer wait %lu ms", millis()-mTime);
         tTimeTot += millis()-mTime;
         frameCnt++;
         showProgress();
@@ -625,9 +627,11 @@ void stopPlaying() {
     // force stop any currently running playback
     stopPlayback = true;
     forceStream = false;
+    controlFrameTimer(true);
     // wait till stopped cleanly, but prevent infinite loop
     uint32_t timeOut = millis();
-    while (isPlaying && millis() - timeOut < 2000) delay(10);
+    while (isPlaying && millis() - timeOut < 400) delay(1);
+    LOG_DBG("Playback %sfinished after %dms", isPlaying ? "not " : "", millis() - timeOut);
     if (isPlaying) {
       Serial.println("");
       LOG_WRN("Force closed playback");
