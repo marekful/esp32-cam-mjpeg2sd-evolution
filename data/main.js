@@ -428,12 +428,15 @@ function setup() {
     view.on('error', function() {
       console.log('view.onerror > ');
       enableStreamButtons();
-
+      deactivatePlaybackButton();
+      deactivateStreamButton();
     });
 
     view.on('abort', function() {
       console.log('view.onerror > ');
       enableStreamButtons();
+      deactivatePlaybackButton();
+      deactivateStreamButton();
     });
 
     forceRecord.click(function() {    
