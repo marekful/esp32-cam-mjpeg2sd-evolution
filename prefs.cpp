@@ -80,14 +80,6 @@ static esp_err_t updateAppStatus(const char* variable, const char* value) {
       closeRecordingRequested = true;
     }
   }
-  else if(!strcmp(variable, "forceStream")) {
-    bool oldVal = forceStream ? true : false;
-    forceStream = (intVal) ? true : false;
-    //LOG_INF(" --> forceStream [%d %d]", oldVal, forceStream);
-    if (oldVal != forceStream && !forceStream) {
-      LOG_INF("Closed stream by Button");
-    }
-  }
   else if(!strcmp(variable, "dbgMotion")) {
     // only enable show motion if motion detect enabled
     if (intVal && useMotion) dbgMotion = true;
